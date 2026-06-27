@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pic to Beat — 연결/재생 테스트</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 680px; margin: 32px auto; padding: 0 16px; color: #1a1a1a; }
+    h1 { font-size: 20px; }
+    label { font-size: 13px; color: #555; }
+    input[type=text] { width: 100%; box-sizing: border-box; padding: 6px; }
+    button { padding: 8px 16px; margin: 6px 6px 6px 0; cursor: pointer; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
+    button.primary { background: #111; color: #fff; border-color: #111; }
+    #log { background: #0e1116; color: #b9f; font-family: ui-monospace, monospace; font-size: 12px; padding: 12px; border-radius: 8px; height: 180px; overflow:auto; white-space: pre-wrap; }
+    .row { margin-top: 20px; }
+    .tracks button { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Pic to Beat — 연결 & 재생 테스트</h1>
+
+  <label>서버 주소</label>
+  <input type="text" id="server" value="http://localhost:8000" />
+
+  <label style="display:block; margin-top:10px;">분위기 프롬프트 (이미지 대신 텍스트로 테스트)</label>
+  <input type="text" id="prompt" value="잔잔한 노을 풍경" />
+
+  <div class="row">
+    <button class="primary" onclick="generate()">① 생성 (개발자 모드 스트리밍)</button>
+    <button onclick="play()">▶ 재생</button>
+    <button onclick="stop()">■ 정지</button>
+  </div>
+
+  <div class="row tracks" id="trackButtons"></div>
+
+  <div class="row">
+    <label>개발자 모드 — 에이전트 진행상황</label>
+    <div id="log"></div>
+  </div>
+
+  <script>
+    let currentState = null;        // 마지막으로 받은 곡 State
+    let synths = [];                // 재생용 Tone 신스들
+
+    const server = () => document.getElementById("server").value.replace(/\/$/, "");
+    const log = (msg) => { const el = document.getElementById("log"); el.textContent += msg + "\n"; el.scrollTop = el.scrollHeight; };
+
+    // ① 생성 — SSE 스트리밍으로 진행상황을 실시간 표시
+    async function generate() {
+      document.getElementById("log").textContent = "";
+      const body = JSON.stringify({ prompt: document.getElementById("prompt").value });
+      const res = await fetch(server() + "/api/generate/stream", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body,
+      });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const parts = buf.split("\n\n");
+        buf = parts.pop();
+        for (const p of parts) {
+          if (!p.startsWith("data: ")) continue;
+          const evt = JSON.parse(p.slice(6));
+          if (evt.stage === "result") {
+            currentState = evt.detail.state;
+            log("✅ 완성  (소요: " + JSON.stringify(evt.detail.timing_ms) + ")");
+            renderTrackButtons();
+          } else if (evt.stage === "error") {
+            log("❌ 에러: " + evt.detail.message);
+          } else {
+            log("• " + evt.stage + "  " + (Object.keys(evt.detail).length ? JSON.stringify(evt.detail) : ""));
+          }
+        }
+      }
+    }
+
+    // 트랙별 "이 트랙만 다시" 버튼 (부분 갱신 테스트)
+    function renderTrackButtons() {
+      const box = document.getElementById("trackButtons");
+      box.innerHTML = "<label>트랙별 부분 갱신:</label><br/>";
+      Object.keys(currentState.tracks).forEach((name) => {
+        const b = document.createElement("button");
+        b.textContent = "↻ " + name;
+        b.onclick = () => revise(name);
+        box.appendChild(b);
+      });
+    }
+
+    // 특정 트랙만 다시 생성 -> State 갱신
+    async function revise(target) {
+      const res = await fetch(server() + "/api/revise", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state: currentState, targets: [target] }),
+      });
+      const d = await res.json();
+      currentState = d.state;
+      log("↻ '" + target + "' 트랙만 갱신  (" + JSON.stringify(d.timing_ms) + ")");
+    }
+
+    // 받은 State 를 Tone.js 로 재생
+    async function play() {
+      if (!currentState) { log("먼저 ① 생성을 눌러줘."); return; }
+      await Tone.start();
+      stop();
+      Tone.Transport.bpm.value = currentState.constraints.bpm;
+
+      for (const [name, track] of Object.entries(currentState.tracks)) {
+        const synth = makeSynth(track.synth).toDestination();
+        synths.push(synth);
+        const part = new Tone.Part((time, ev) => {
+          const note = ev.note === null ? "C1" : ev.note;  // 킥 등 음정 없는 건 고정음
+          synth.triggerAttackRelease(note, ev.duration, time, ev.velocity);
+        }, track.notes);
+        part.loop = true;
+        part.loopEnd = currentState.constraints.bars + "m";  // 마디 수만큼 루프
+        part.start(0);
+      }
+      Tone.Transport.start();
+      log("▶ 재생 중...");
+    }
+
+    function makeSynth(kind) {
+      switch (kind) {
+        case "Tone.MembraneSynth": return new Tone.MembraneSynth();
+        case "Tone.MonoSynth":     return new Tone.MonoSynth();
+        case "Tone.PluckSynth":    return new Tone.PluckSynth();
+        case "Tone.PolySynth":     return new Tone.PolySynth();
+        default:                    return new Tone.Synth();
+      }
+    }
+
+    function stop() {
+      Tone.Transport.stop();
+      Tone.Transport.cancel();
+      synths.forEach((s) => s.dispose());
+      synths = [];
+    }
+  </script>
+</body>
+</html>

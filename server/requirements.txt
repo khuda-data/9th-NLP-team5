@@ -1,0 +1,6 @@
+fastapi==0.117.1
+uvicorn[standard]==0.34.0
+pydantic==2.9.2
+
+# 실제 LLM 붙일 때 (call_llm 구현 후) 주석 해제:
+# anthropic==0.40.0
