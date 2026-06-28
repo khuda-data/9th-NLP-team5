@@ -1,12 +1,12 @@
 from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
-from langfuse.decorators import observe
+from langfuse import observe
 
 from state import MusicState
 from agents.schemas import MusicOutput
 from rag.music_kb import query_music_knowledge
 
-_llm = ChatAnthropic(model="claude-3-5-sonnet-20241022", max_tokens=1024)
+_llm = ChatAnthropic(model="claude-sonnet-4-6", max_tokens=2048)
 _structured_llm = _llm.with_structured_output(MusicOutput)
 
 _prompt = ChatPromptTemplate.from_messages([

@@ -9,9 +9,9 @@ class MoodOutput(BaseModel):
 
 
 class NoteEvent(BaseModel):
-    time: str       # Tone.js 형식: "measure:beat:subdivision"
-    note: str       # 예: "A2", "C4"
-    duration: str   # 예: "4n", "8n", "2n"
+    time: str       # Tone.js format: "measure:beat:subdivision"
+    note: str       # e.g. "A2", "C4"
+    duration: str   # e.g. "4n", "8n", "2n"
 
 
 class TrackOutput(BaseModel):
@@ -21,11 +21,11 @@ class TrackOutput(BaseModel):
 
 class MusicOutput(BaseModel):
     chord_progression: list[str] = Field(min_length=2)
-    song_structure: dict   # {intro, main, outro}
-    music_guide: dict      # {bass, kick, pluck, brass, strings}
+    song_structure: dict = Field(default_factory=dict)   # {intro, main, outro}
+    music_guide: dict = Field(default_factory=dict)       # {bass, kick, pluck, brass, strings}
 
 
 class CriticOutput(BaseModel):
     quality_score: float = Field(ge=0.0, le=1.0)
-    feedback: str
+    feedback: str = ""
     instrument_issues: dict = Field(default_factory=dict)

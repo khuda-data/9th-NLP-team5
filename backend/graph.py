@@ -11,7 +11,7 @@ from agents.instruments import INSTRUMENT_REGISTRY, ALL_INSTRUMENTS
 
 # --- 악기 노드: state의 instrument_name 키로 dispatch ---
 async def run_instrument(state: dict) -> dict:
-    instrument_name: str = state["instrument_name"]
+    instrument_name: str = state["instrument_name"].lower()  # 정규화(소문자)
     agent = INSTRUMENT_REGISTRY[instrument_name]()
     track = await agent.generate(state)
     return {"tracks": {instrument_name: track}}

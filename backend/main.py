@@ -39,7 +39,7 @@ class RegenerateRequest(BaseModel):
 async def generate_music(
     image: Optional[UploadFile] = File(None),
     text: Optional[str] = Form(None),
-    max_retries: int = Form(2),
+    max_retries: int = Form(int(os.getenv("MAX_RETRIES", "2"))),
 ):
     """이미지/텍스트를 입력받아 전체 음악 시퀀스를 생성합니다."""
     if not image and not text:

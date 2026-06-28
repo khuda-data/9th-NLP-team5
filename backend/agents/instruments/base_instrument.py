@@ -2,7 +2,7 @@ import re
 import json
 import anthropic
 from abc import ABC, abstractmethod
-from langfuse.decorators import observe
+from langfuse import observe
 
 from agents.schemas import TrackOutput
 
@@ -55,14 +55,16 @@ Tempo: {state['tempo']} BPM
 Chord progression: {state['chord_progression']}
 Song structure: {json.dumps(state['song_structure'])}
 Instrument guide: {guide}
-Note range: {self.valid_note_range[0]} to {self.valid_note_range[1]}"""
+Note range: {self.valid_note_range[0]} to {self.valid_note_range[1]}
+
+IMPORTANT: Output at most 32 notes total. Keep the JSON compact and ensure it is complete and valid (close every bracket)."""
 
         if critic_issue:
             prompt += f"\n\nPrevious issue to fix: {critic_issue}"
 
         response = _client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=2048,
+            model="claude-sonnet-4-6",
+            max_tokens=4096,
             system=system,
             messages=[{"role": "user", "content": prompt}],
         )

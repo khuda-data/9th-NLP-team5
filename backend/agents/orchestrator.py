@@ -19,7 +19,8 @@ async def increment_retry(state: MusicState) -> dict:
     return {
         "retry_count": state["retry_count"] + 1,
         "target_instruments": faulty,
-        "tracks": {},  # 재생성 시 트랙 초기화
+        # NOTE: tracks 는 merge reducer 라 여기서 {} 를 줘도 초기화되지 않음(의도된 동작).
+        #       문제 악기만 target 으로 재생성되어 기존 정상 트랙 위에 덮어쓰기 merge 됨.
     }
 
 
