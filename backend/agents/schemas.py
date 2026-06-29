@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 
 class MoodOutput(BaseModel):
-    mood_keywords: list[str] = Field(min_length=1, max_length=5)
+    mood_keywords: list[str] = Field(min_length=1)
     tempo: int = Field(ge=60, le=180)
     scale: str
     color_profile: str
