@@ -1,9 +1,11 @@
 import os
+import uuid
+import time
 import base64
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -11,6 +13,9 @@ load_dotenv()
 
 from graph import music_graph, regen_graph
 from agents.instruments import ALL_INSTRUMENTS
+from logger import get_logger
+
+logger = get_logger(__name__)
 from agents.schemas import GenerateResponse, ErrorResponse
 
 app = FastAPI(title="Multi-Agent Music Generator", version="0.1.0")
@@ -23,9 +28,22 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    req_id = str(uuid.uuid4())[:8]
+    logger.info("REQUEST  [%s] %s %s", req_id, request.method, request.url.path)
+    t0 = time.perf_counter()
+    response = await call_next(request)
+    elapsed = time.perf_counter() - t0
+    logger.info(
+        "RESPONSE [%s] status=%d elapsed=%.2fs",
+        req_id, response.status_code, elapsed,
+    )
+    return response
+
+
 class RegenerateRequest(BaseModel):
     instruments: list[str]
-    # 기존 state 재사용을 위한 컨텍스트
     mood_keywords: list[str]
     tempo: int
     scale: str
@@ -71,7 +89,6 @@ async def generate_music(
     text: Optional[str] = Form(None),
     max_retries: int = Form(int(os.getenv("MAX_RETRIES", "2"))),
 ):
-    """이미지/텍스트를 입력받아 전체 음악 시퀀스를 생성합니다."""
     if not image and not text:
         raise HTTPException(status_code=400, detail="image 또는 text 중 하나는 필수입니다.")
 
@@ -79,6 +96,9 @@ async def generate_music(
     if image:
         raw = await image.read()
         image_b64 = base64.b64encode(raw).decode("utf-8")
+        logger.info("generate | image_size=%d bytes max_retries=%d", len(raw), max_retries)
+    else:
+        logger.info("generate | text_prompt='%s' max_retries=%d", (text or "")[:80], max_retries)
 
     initial_state = {
         "image_base64": image_b64,
@@ -100,7 +120,13 @@ async def generate_music(
         "final_output": None,
     }
 
+    t0 = time.perf_counter()
     result = await music_graph.ainvoke(initial_state)
+    elapsed = time.perf_counter() - t0
+
+    score = result.get("final_output", {}).get("quality_score", 0.0)
+    logger.info("generate complete | score=%.2f elapsed=%.2fs", score, elapsed)
+
     return result["final_output"]
 
 
@@ -123,12 +149,12 @@ async def generate_music(
     },
 )
 async def regenerate_instruments(body: RegenerateRequest):
-    """특정 악기만 선택적으로 재생성합니다."""
     invalid = [i for i in body.instruments if i not in ALL_INSTRUMENTS]
     if invalid:
         raise HTTPException(status_code=400, detail=f"알 수 없는 악기: {invalid}")
 
-    # mood/music 단계를 건너뛰고 악기 생성부터 시작
+    logger.info("regenerate | instruments=%s", body.instruments)
+
     initial_state = {
         "image_base64": None,
         "user_text": None,
@@ -149,7 +175,13 @@ async def regenerate_instruments(body: RegenerateRequest):
         "final_output": None,
     }
 
+    t0 = time.perf_counter()
     result = await regen_graph.ainvoke(initial_state)
+    elapsed = time.perf_counter() - t0
+
+    score = result.get("final_output", {}).get("quality_score", 0.0)
+    logger.info("regenerate complete | instruments=%s score=%.2f elapsed=%.2fs", body.instruments, score, elapsed)
+
     return result["final_output"]
 
 

@@ -5,15 +5,20 @@ from langfuse import observe
 from state import MusicState
 from agents.schemas import MusicOutput
 from rag.music_kb import query_music_knowledge
+from logger import get_logger
 
-_llm = ChatAnthropic(model="claude-sonnet-4-6", max_tokens=2048)
+logger = get_logger(__name__)
+
+_MODEL = "claude-sonnet-4-6"
+_llm = ChatAnthropic(model=_MODEL, max_tokens=2048)
 _structured_llm = _llm.with_structured_output(MusicOutput)
 
 _prompt = ChatPromptTemplate.from_messages([
     (
         "system",
         "You are a professional music composer. "
-        "Given mood analysis and relevant music theory, design a complete song structure.",
+        "Given mood analysis and relevant music theory, design a complete song structure. "
+        "Be creative and avoid generic, predictable progressions — vary the structure between sections.",
     ),
     (
         "human",
@@ -26,7 +31,8 @@ Relevant music theory:
 {rag_context}
 
 Design chord_progression, song_structure (intro/main/outro with bars and description),
-and music_guide with specific instructions for each instrument (bass, kick, pluck, brass, strings).""",
+and music_guide with specific, VARIED instructions for each instrument (bass, kick, pluck, brass, strings).
+Each instrument guide must describe distinct rhythmic patterns, articulations, and dynamics — not generic advice.""",
     ),
 ])
 
@@ -35,6 +41,11 @@ _chain = _prompt | _structured_llm
 
 @observe(name="music_agent")
 async def music_agent(state: MusicState) -> dict:
+    logger.info(
+        "music_agent start | scale=%s tempo=%d keywords=%s",
+        state["scale"], state["tempo"], state["mood_keywords"],
+    )
+
     rag_context = query_music_knowledge(
         scale=state["scale"],
         mood_keywords=state["mood_keywords"],
@@ -48,4 +59,9 @@ async def music_agent(state: MusicState) -> dict:
         "rag_context": rag_context,
     })
 
+    logger.info(
+        "music_agent done | chords=%s structure_keys=%s",
+        result.chord_progression,
+        list(result.song_structure.keys()),
+    )
     return result.model_dump()
