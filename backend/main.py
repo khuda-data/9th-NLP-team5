@@ -16,6 +16,7 @@ from agents.instruments import ALL_INSTRUMENTS
 from logger import get_logger
 
 logger = get_logger(__name__)
+from agents.schemas import GenerateResponse, ErrorResponse
 
 app = FastAPI(title="Multi-Agent Music Generator", version="0.1.0")
 
@@ -53,7 +54,36 @@ class RegenerateRequest(BaseModel):
     existing_tracks: dict
 
 
-@app.post("/generate")
+@app.post(
+    "/generate",
+    response_model=GenerateResponse,
+    summary="음악 생성",
+    description="이미지 또는 텍스트를 입력받아 전체 멀티에이전트 파이프라인(분위기 분석 → 작곡 → 악기 5종 생성 → 품질평가)을 돌려 음악 시퀀스를 생성합니다.",
+    responses={
+        200: {
+            "description": "음악 시퀀스 생성 성공.",
+            "model": GenerateResponse,
+        },
+        400: {
+            "description": "image/text 둘 다 누락.",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {"detail": "image 또는 text 중 하나는 필수입니다."}
+                }
+            },
+        },
+        500: {
+            "description": "생성 중 내부 오류(LLM 응답 파싱 실패 등).",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Internal Server Error"}
+                }
+            },
+        },
+    },
+)
 async def generate_music(
     image: Optional[UploadFile] = File(None),
     text: Optional[str] = Form(None),
@@ -100,7 +130,24 @@ async def generate_music(
     return result["final_output"]
 
 
-@app.post("/regenerate")
+@app.post(
+    "/regenerate",
+    response_model=GenerateResponse,
+    summary="악기 부분 재생성",
+    description="mood/music 단계를 건너뛰고 지정한 악기 트랙만 다시 생성합니다. instruments 는 반드시 소문자(bass/kick/pluck/brass/strings)여야 합니다.",
+    responses={
+        200: {"description": "재생성 성공.", "model": GenerateResponse},
+        400: {
+            "description": "악기명이 목록에 없음.",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {"detail": "알 수 없는 악기: ['Bass']"}
+                }
+            },
+        },
+    },
+)
 async def regenerate_instruments(body: RegenerateRequest):
     invalid = [i for i in body.instruments if i not in ALL_INSTRUMENTS]
     if invalid:
