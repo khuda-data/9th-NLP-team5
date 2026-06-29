@@ -59,7 +59,6 @@ async def generate_music(
     text: Optional[str] = Form(None),
     max_retries: int = Form(int(os.getenv("MAX_RETRIES", "2"))),
 ):
-    """이미지/텍스트를 입력받아 전체 음악 시퀀스를 생성합니다."""
     if not image and not text:
         raise HTTPException(status_code=400, detail="image 또는 text 중 하나는 필수입니다.")
 
@@ -103,7 +102,6 @@ async def generate_music(
 
 @app.post("/regenerate")
 async def regenerate_instruments(body: RegenerateRequest):
-    """특정 악기만 선택적으로 재생성합니다."""
     invalid = [i for i in body.instruments if i not in ALL_INSTRUMENTS]
     if invalid:
         raise HTTPException(status_code=400, detail=f"알 수 없는 악기: {invalid}")
