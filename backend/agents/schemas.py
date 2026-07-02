@@ -74,3 +74,47 @@ class CriticOutput(BaseModel):
         default_factory=dict,
         description="문제 있는 악기만.",
     )
+
+
+# --- API 응답 모델 (Swagger /docs 스키마/예시용) ---
+class MoodSummary(BaseModel):
+    keywords: list[str]
+    tempo: int
+    scale: str
+
+
+class GenerateResponse(BaseModel):
+    """POST /generate, /regenerate 의 성공 응답 구조."""
+    mood: MoodSummary
+    chord_progression: list[str]
+    tracks: list[TrackOutput]
+    quality_score: float
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "mood": {
+                    "keywords": ["melancholic", "lonely", "nocturnal"],
+                    "tempo": 72,
+                    "scale": "D minor",
+                },
+                "chord_progression": ["Dm", "Bb", "F", "C", "Dm", "Gm", "A7", "Dm"],
+                "tracks": [
+                    {
+                        "instrument": "Bass",
+                        "notes": [
+                            {"time": "0:0:0", "note": "D2", "duration": "4n"},
+                            {"time": "0:2:0", "note": "A2", "duration": "8n"},
+                        ],
+                    }
+                ],
+                "quality_score": 0.82,
+            }
+        }
+    }
+
+
+class ErrorResponse(BaseModel):
+    """에러 응답 구조 (FastAPI HTTPException 기본 형식)."""
+    detail: str
+
