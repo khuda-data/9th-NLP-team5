@@ -86,6 +86,7 @@ def _parse_track(text: str) -> TrackOutput:
                     pass
             raise ValueError(f"Cannot parse track JSON (truncated?): {text[:300]}")
 
+
 # 추상 클래스 정의: BaseInstrumentAgent
 class BaseInstrumentAgent(ABC):
     @property

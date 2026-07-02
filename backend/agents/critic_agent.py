@@ -63,7 +63,6 @@ _chain = _prompt | _structured_llm
 @observe(name="critic_agent")
 async def critic_agent(state: MusicState) -> dict:
     retry = state.get("retry_count", 0)
-
     logger.info(
         "critic_agent start | retry=%d scale=%s tempo=%d tracks=%s",
         retry, state["scale"], state["tempo"],
