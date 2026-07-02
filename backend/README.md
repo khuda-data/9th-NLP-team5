@@ -6,7 +6,7 @@
 ```
 [mood_agent] → [music_agent(RAG)] → ┌ bass ┐
                                      ├ kick ┤ (병렬)
-                                     ├ pluck┤ → [critic_agent] → score≥0.75 ? 완료 : retry
+                                     ├ pluck┤ → [critic_agent] → score≥0.7 ? 완료 : retry
                                      ├ brass┤
                                      └strings┘
 ```

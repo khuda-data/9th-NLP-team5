@@ -1,10 +1,9 @@
 from state import MusicState
 
-QUALITY_THRESHOLD = 0.75
+QUALITY_THRESHOLD = 0.8
 
 
 def orchestrator_router(state: MusicState) -> str:
-    """Critic 결과를 보고 재시도 vs 완료 결정."""
     if state["quality_score"] >= QUALITY_THRESHOLD:
         return "finalize"
     if state["retry_count"] >= state["max_retries"]:
@@ -13,7 +12,6 @@ def orchestrator_router(state: MusicState) -> str:
 
 
 async def increment_retry(state: MusicState) -> dict:
-    """재시도 카운터 증가. 문제 있는 악기만 target으로 설정."""
     issues = state.get("instrument_issues", {})
     faulty = list(issues.keys()) if issues else None  # None = 전체 재생성
     return {

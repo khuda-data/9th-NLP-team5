@@ -7,7 +7,7 @@ from state import MusicState
 from agents.schemas import MoodOutput
 from logger import get_logger
 
-_client = anthropic.Anthropic()
+_client = anthropic.AsyncAnthropic()
 _lf = get_client()
 logger = get_logger(__name__)
 
@@ -83,7 +83,7 @@ async def mood_agent(state: MusicState) -> dict:
         "text": f"Analyze this input for musical mood.\n{text}" if text else "Analyze this image for musical mood.",
     })
 
-    response = _client.messages.create(
+    response = await _client.messages.create(
         model=_MODEL,
         max_tokens=512,
         system=_SYSTEM,

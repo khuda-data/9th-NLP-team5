@@ -8,16 +8,15 @@ from agents.critic_agent import critic_agent
 from agents.orchestrator import orchestrator_router, increment_retry, finalize
 from agents.instruments import INSTRUMENT_REGISTRY, ALL_INSTRUMENTS
 
-
-# --- 악기 노드: state의 instrument_name 키로 dispatch ---
+# 악기 노드: 
 async def run_instrument(state: dict) -> dict:
-    instrument_name: str = state["instrument_name"].lower()  # 정규화(소문자)
-    agent = INSTRUMENT_REGISTRY[instrument_name]()
+    instrument_name: str = state["instrument_name"].lower() 
+    agent = INSTRUMENT_REGISTRY[instrument_name]() # 팩토리 패턴 호출 - 생성자 호출 
     track = await agent.generate(state)
     return {"tracks": {instrument_name: track}}
 
 
-# --- 악기 병렬 라우터 (Send API) ---
+# 악기 병렬 라우터 Send
 def route_to_instruments(state: MusicState) -> list[Send]:
     targets = state.get("target_instruments") or ALL_INSTRUMENTS
     return [
@@ -27,7 +26,6 @@ def route_to_instruments(state: MusicState) -> list[Send]:
 
 
 def _add_instrument_subgraph(g: StateGraph) -> None:
-    """악기 생성 → critic → retry 루프를 그래프에 추가하는 공통 헬퍼."""
     g.add_node("run_instrument", run_instrument)
     g.add_node("critic_agent", critic_agent)
     g.add_node("increment_retry", increment_retry)
@@ -44,29 +42,26 @@ def _add_instrument_subgraph(g: StateGraph) -> None:
 
 
 def build_full_graph() -> StateGraph:
-    """전체 생성: mood → music → 악기 병렬 → critic 루프."""
+    #MusicState 를 기반으로 하는 StateGraph 생성
     g = StateGraph(MusicState)
 
     g.add_node("mood_agent", mood_agent)
     g.add_node("music_agent", music_agent)
+
     _add_instrument_subgraph(g)
 
     g.set_entry_point("mood_agent")
     g.add_edge("mood_agent", "music_agent")
     g.add_conditional_edges("music_agent", route_to_instruments, ["run_instrument"])
-
     return g.compile()
 
 
 def build_regen_graph() -> StateGraph:
-    """부분 재생성: mood/music 스킵하고 악기 생성부터 바로 시작."""
+    #부분 재생성 mood/music 스킵하고 악기 생성부터 시작.
     g = StateGraph(MusicState)
-
     _add_instrument_subgraph(g)
-
     # 악기 병렬 실행이 진입점
     g.add_conditional_edges("__start__", route_to_instruments, ["run_instrument"])
-
     return g.compile()
 
 

@@ -187,8 +187,6 @@ cp .env.example .env
 # .env에 ANTHROPIC_API_KEY, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY 입력
 
 pip install -r requirements.txt
+.venv\Scripts\python rag/seed_spotify.py
 uvicorn main:app --reload
 ```
-
-Langfuse 대시보드 (`https://cloud.langfuse.com`)에서 `/generate` 호출마다
-에이전트별 토큰 사용량, 지연시간, 입출력을 실시간 확인 가능.
