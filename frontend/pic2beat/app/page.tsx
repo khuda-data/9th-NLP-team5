@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import MusicPlayer from "./components/MusicPlayer";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -28,6 +29,7 @@ interface GenerateResult {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [text, setText] = useState("");
@@ -84,6 +86,7 @@ export default function Home() {
 
       const data: GenerateResult = await res.json();
       setResult(data);
+      localStorage.setItem("pic2beat_result", JSON.stringify(data));
     } catch (e) {
       setError(e instanceof Error ? e.message : "알 수 없는 오류가 발생했어요.");
     } finally {
@@ -222,6 +225,14 @@ export default function Home() {
                 ))}
               </div>
             </div>
+
+            {/* 편집하기 버튼 */}
+            <button
+              onClick={() => router.push("/edit")}
+              className="w-full border border-purple-600 text-purple-400 hover:bg-purple-600 hover:text-white font-semibold py-2.5 rounded-xl transition text-sm"
+            >
+              ✏️ 편집하기
+            </button>
 
             {/* 음악 플레이어 */}
             <div className="border-t border-gray-700 pt-4">
