@@ -1,7 +1,9 @@
 import os
 import chromadb
 from chromadb.utils import embedding_functions
+from logger import get_logger
 
+logger = get_logger(__name__)
 _PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "./chroma_db")
 
 _client = chromadb.PersistentClient(path=_PERSIST_DIR)
@@ -166,7 +168,8 @@ _SEED_DOCS = [
 
 
 def _seed_if_empty() -> None:
-    if _collection.count() == 0:
+    # Spotify 데이터로 교체 후 기본 시드 비활성화
+    if _collection.count() == 0 and _SEED_DOCS:
         _collection.add(
             ids=[d["id"] for d in _SEED_DOCS],
             documents=[d["text"] for d in _SEED_DOCS],
@@ -179,4 +182,14 @@ def query_music_knowledge(scale: str, mood_keywords: list[str], n_results: int =
     query = f"{scale} {' '.join(mood_keywords)}"
     results = _collection.query(query_texts=[query], n_results=n_results)
     docs = results.get("documents", [[]])[0]
+    metas = results.get("metadatas", [[]])[0]
+    logger.info(
+        "RAG 검색 query='%s' | %d개 매칭",
+        query, len(docs),
+    )
+    for doc, meta in zip(docs, metas):
+        logger.info(
+            "  → %s - %s | %s",
+            meta.get("artist_name", "?"), meta.get("track_name", "?"), doc,
+        )
     return "\n".join(f"- {doc}" for doc in docs)
