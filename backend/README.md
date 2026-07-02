@@ -6,21 +6,21 @@
 ```
 [mood_agent] → [music_agent(RAG)] → ┌ bass ┐
                                      ├ kick ┤ (병렬)
-                                     ├ pluck┤ → [critic_agent] → score≥0.75 ? 완료 : retry
+                                     ├ pluck┤ → [critic_agent] → score≥0.7 ? 완료 : retry
                                      ├ brass┤
                                      └strings┘
 ```
 
 ## 기술 스택
 
-| 역할 | 라이브러리 |
-|------|-----------|
-| API 서버 | FastAPI + Uvicorn |
-| 에이전트 오케스트레이션 | LangGraph |
-| LLM | Anthropic Claude (mood/critic: Haiku, music/instruments: Sonnet) |
-| LLM 체인 | LangChain-Anthropic |
-| RAG 지식베이스 | ChromaDB |
-| 트레이싱 | Langfuse 4.x (`@observe`) |
+| 역할                    | 라이브러리                                                       |
+| ----------------------- | ---------------------------------------------------------------- |
+| API 서버                | FastAPI + Uvicorn                                                |
+| 에이전트 오케스트레이션 | LangGraph                                                        |
+| LLM                     | Anthropic Claude (mood/critic: Haiku, music/instruments: Sonnet) |
+| LLM 체인                | LangChain-Anthropic                                              |
+| RAG 지식베이스          | ChromaDB                                                         |
+| 트레이싱                | Langfuse 4.x (`@observe`)                                        |
 
 ## 디렉토리 구조
 
@@ -32,7 +32,7 @@ backend/
 ├── logger.py            # 공통 로거
 ├── requirements.txt
 ├── .env.example
-├── run.bat              # Windows 로컬 실행 스크립트
+├── run.bat
 ├── agents/
 │   ├── schemas.py       # Pydantic 출력 스키마
 │   ├── mood_agent.py    # 이미지/텍스트 → 분위기·템포·스케일 (Haiku)
@@ -61,33 +61,33 @@ python -m uvicorn main:app --reload --port 8000
 
 ## 환경변수 (.env)
 
-| 변수 | 필수 | 설명 |
-|------|------|------|
-| `ANTHROPIC_API_KEY` | ✅ | 모든 LLM 호출에 사용 |
-| `LANGFUSE_PUBLIC_KEY` | | Langfuse 트레이싱 (없으면 자동 비활성) |
-| `LANGFUSE_SECRET_KEY` | | Langfuse 트레이싱 |
-| `LANGFUSE_HOST` | | 기본값 `https://cloud.langfuse.com` |
-| `CHROMA_PERSIST_DIR` | | 기본값 `./chroma_db` |
-| `MAX_RETRIES` | | critic 재시도 상한 (기본값 2) |
+| 변수                  | 필수 | 설명                                   |
+| --------------------- | ---- | -------------------------------------- |
+| `ANTHROPIC_API_KEY`   |      | 모든 LLM 호출에 사용                   |
+| `LANGFUSE_PUBLIC_KEY` |      | Langfuse 트레이싱 (없으면 자동 비활성) |
+| `LANGFUSE_SECRET_KEY` |      | Langfuse 트레이싱                      |
+| `LANGFUSE_HOST`       |      | 기본값 `https://cloud.langfuse.com`    |
+| `CHROMA_PERSIST_DIR`  |      | 기본값 `./chroma_db`                   |
+| `MAX_RETRIES`         |      | critic 재시도 상한 (기본값 2)          |
 
 ## 주요 엔드포인트
 
-```bash
-# 헬스체크
-GET  /health        → {"status":"ok"}
-
 # 악기 목록
-GET  /instruments   → {"instruments":["bass","kick","pluck","brass","strings"]}
+
+GET /instruments → {"instruments":["bass","kick","pluck","brass","strings"]}
 
 # 음악 생성 (image 또는 text 중 하나 필수)
+
 POST /generate
-  -F "image=@scene.jpg"
-  -F "text=비 오는 밤, 쓸쓸한 도시"
-  -F "max_retries=2"
+-F "image=@scene.jpg"
+-F "text=비 오는 밤, 쓸쓸한 도시"
+-F "max_retries=2"
 
 # 특정 악기만 재생성 (mood/music 단계 스킵)
-POST /regenerate   (JSON body)
-```
+
+POST /regenerate (JSON body)
+
+````
 
 ## 응답 구조
 
@@ -104,12 +104,12 @@ POST /regenerate   (JSON body)
     "Strings": {"notes": [...]}
   }
 }
-```
+````
 
 `time` 은 Tone.js `"measure:beat:subdivision"` 포맷, `duration` 은 `4n` (4분음표) 등 Tone.js 표기.
 
 ## 알아둘 점
 
 - ChromaDB `DefaultEmbeddingFunction` 은 첫 실행 시 MiniLM 모델을 1회 다운로드함 (약간 느릴 수 있음).
-- `/health`, `/instruments` 는 API 키 없이 동작. `/generate`, `/regenerate` 는 유효한 키 필요.
+- `/instruments` 는 API 키 없이 동작. `/generate`, `/regenerate` 는 키 필요.
 - Langfuse 키 미설정 시 트레이싱 없이 정상 동작.

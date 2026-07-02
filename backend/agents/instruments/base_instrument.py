@@ -8,11 +8,11 @@ from langfuse import observe, get_client
 from agents.schemas import TrackOutput
 from logger import get_logger
 
-_client = anthropic.Anthropic()
+_client = anthropic.AsyncAnthropic()
 _lf = get_client()
 logger = get_logger(__name__)
 
-_MODEL = "claude-sonnet-4-6"
+_MODEL = "claude-haiku-4-5-20251001"
 
 _GROOVE_HINTS: dict[str, list[str]] = {
     "bass": [
@@ -86,7 +86,7 @@ def _parse_track(text: str) -> TrackOutput:
                     pass
             raise ValueError(f"Cannot parse track JSON (truncated?): {text[:300]}")
 
-
+# 추상 클래스 정의: BaseInstrumentAgent
 class BaseInstrumentAgent(ABC):
     @property
     @abstractmethod
@@ -127,7 +127,7 @@ Output compact single-line JSON only — no newlines, no indentation."""
         if critic_issue:
             prompt += f"\n\nPrevious issue to fix: {critic_issue}"
 
-        response = _client.messages.create(
+        response = await _client.messages.create(
             model=_MODEL,
             max_tokens=1024,
             system=system,

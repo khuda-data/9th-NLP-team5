@@ -24,7 +24,8 @@ class MusicState(TypedDict):
     song_structure: dict              # {intro, main, outro}
     music_guide: dict                 # 악기별 연주 힌트
 
-    # --- Instrument Sub-Agents 출력 (병렬 병합용 reducer) ---
+    # --- Instrument Sub-Agents 출력 
+    # 
     tracks: Annotated[dict[str, Any], _merge_tracks]
 
     # --- Critic Agent 출력 ---
